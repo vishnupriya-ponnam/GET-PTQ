@@ -54,6 +54,8 @@ if not os.path.isdir("/content/GET"):
     !git clone -q --depth 1 https://github.com/maklachur/GET.git /content/GET
 if not os.path.isdir("/content/GET-PTQ"):
     !git clone -q --depth 1 {GET_PTQ_REPO} /content/GET-PTQ
+else:
+    !git -C /content/GET-PTQ pull -q   # get the latest fixes
 sys.path.insert(0, "/content/GET-PTQ")
 GET_ROOT = "/content/GET"
 print("GET checkpoints:", sorted(os.listdir(f"{GET_ROOT}/Results")))

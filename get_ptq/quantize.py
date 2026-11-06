@@ -67,5 +67,20 @@ def modelopt_int8(onnx_path: str, calib_npy: str, out_path: str, high_precision:
     cmd += list(extra_args or [])
     res = subprocess.run(cmd, capture_output=True, text=True)
     if res.returncode != 0 or not os.path.isfile(out_path):
-        raise RuntimeError(f"ModelOpt failed for {onnx_path}:\n{res.stdout[-3000:]}\n{res.stderr[-3000:]}")
+        raise RuntimeError(f"ModelOpt failed (exit code {res.returncode}) for {onnx_path}:\n{res.stdout[-3000:]}\n{res.stderr[-3000:]}")
+    return out_path
+
+
+def modelopt_fp16(onnx_path: str, out_path: str) -> str:
+    """Convert an FP32 ONNX model to FP16 with NVIDIA ModelOpt AutoCast.
+
+    Inputs and outputs stay FP32 (--keep_io_types). AutoCast keeps a node in FP32 when its
+    values would overflow FP16. Runs as a separate process, like modelopt_int8.
+    """
+    cmd = [sys.executable, "-m", "modelopt.onnx.autocast", "--onnx_path", onnx_path,
+           "--output_path", out_path, "--low_precision_type", "fp16", "--keep_io_types",
+           "--log_level", "WARNING"]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode != 0 or not os.path.isfile(out_path):
+        raise RuntimeError(f"ModelOpt AutoCast failed (exit code {res.returncode}) for {onnx_path}:\n{res.stdout[-3000:]}\n{res.stderr[-3000:]}")
     return out_path

@@ -2,9 +2,9 @@
 
 Precisions:
   fp32 : FP32 engine with TF32 turned off (the true FP32 baseline, as in the PTQ paper)
-  fp16 : FP16 engine built from the FP32 ONNX file
-  int8 / int8_fp16 : strongly typed engine built from a ModelOpt Q/DQ ONNX file, so
-         TensorRT follows the Q/DQ types exactly (real INT8 kernels)
+  fp16 : FP16 engine built from an FP16 ONNX file (ModelOpt AutoCast, inputs/outputs stay FP32)
+  int8 / int8_fp16 : engine built from a ModelOpt Q/DQ ONNX file (real INT8 kernels)
+  Low-precision engines are strongly typed: TensorRT follows the types in the ONNX file.
 """
 from __future__ import annotations
 
@@ -22,9 +22,16 @@ NDF = trt.NetworkDefinitionCreationFlag
 
 
 def build_engine(onnx_path: str, engine_path: str, precision: str, workspace_gb: float = 4.0) -> str:
+    """Build a TensorRT engine.
+
+    The ONNX file already carries the precision: FP32 for fp32, an FP16 graph (ModelOpt
+    AutoCast) for fp16, and a Q/DQ graph for int8 / int8_fp16. Low-precision builds are
+    strongly typed, so TensorRT follows the types in the file exactly. (Recent TensorRT
+    versions removed the old weakly typed FP16/INT8 builder flags, so we don't rely on them.)
+    """
     builder = trt.Builder(LOGGER)
     flags = 0 if TRT_MAJOR >= 10 else 1 << int(NDF.EXPLICIT_BATCH)
-    strongly_typed = precision.startswith("int8") and hasattr(NDF, "STRONGLY_TYPED")
+    strongly_typed = precision != "fp32" and hasattr(NDF, "STRONGLY_TYPED")
     if strongly_typed:
         flags |= 1 << int(NDF.STRONGLY_TYPED)
     network = builder.create_network(flags)
@@ -35,14 +42,14 @@ def build_engine(onnx_path: str, engine_path: str, precision: str, workspace_gb:
     config = builder.create_builder_config()
     config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, int(workspace_gb * (1 << 30)))
     config.profiling_verbosity = trt.ProfilingVerbosity.DETAILED
-    if not strongly_typed:
-        config.clear_flag(trt.BuilderFlag.TF32)  # true FP32 baseline
-        if precision == "fp16":
-            config.set_flag(trt.BuilderFlag.FP16)
-        elif precision.startswith("int8"):  # fallback for TensorRT without strong typing
-            config.set_flag(trt.BuilderFlag.INT8)
-            if precision == "int8_fp16":
-                config.set_flag(trt.BuilderFlag.FP16)
+    BF = trt.BuilderFlag
+    if precision == "fp32" and hasattr(BF, "TF32"):
+        config.clear_flag(BF.TF32)  # true FP32 baseline
+    if not strongly_typed:  # old TensorRT without strong typing: fall back to builder flags
+        if precision in ("fp16", "int8_fp16") and hasattr(BF, "FP16"):
+            config.set_flag(BF.FP16)
+        if precision.startswith("int8") and hasattr(BF, "INT8"):
+            config.set_flag(BF.INT8)
     data = builder.build_serialized_network(network, config)
     if data is None:
         raise RuntimeError(f"TensorRT build failed for {onnx_path} ({precision})")

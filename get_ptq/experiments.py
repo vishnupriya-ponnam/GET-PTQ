@@ -21,7 +21,7 @@ from tqdm.auto import tqdm
 from .data import check_dataset, load_pair, split_names
 from .metrics import all_metrics, dice_iou
 from .models import INPUT_SHAPES, PART_NAMES, load_get
-from .quantize import export_onnx, make_calibration_sets, modelopt_int8
+from .quantize import export_onnx, make_calibration_sets, modelopt_fp16, modelopt_int8
 
 # slug: (label, encoder precision, ETN precision, decoder precision)
 # precisions: fp32 | fp16 | int8 (INT8 Q/DQ, other layers FP32) | int8_fp16 (INT8 Q/DQ, other layers FP16)
@@ -68,7 +68,12 @@ def _prepare_engines(parts, configs, onnx_dir, engine_dir, calib_dir, train_imag
     engines, info = {}, []
     for part, prec in needed:
         src = onnx_fp32[part]
-        if prec.startswith("int8"):
+        if prec == "fp16":
+            src = os.path.join(onnx_dir, f"{part}_fp16.onnx")
+            if not os.path.isfile(src):
+                log(f"ModelOpt AutoCast to FP16: {part}")
+                modelopt_fp16(onnx_fp32[part], src)
+        elif prec.startswith("int8"):
             hp = "fp16" if prec == "int8_fp16" else "fp32"
             src = os.path.join(onnx_dir, f"{part}_{prec}_{calib_method}_qdq.onnx")
             if not os.path.isfile(src):
