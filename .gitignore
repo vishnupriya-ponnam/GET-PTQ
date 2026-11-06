@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+results/
+_work/
+work/
+*.onnx
+*.engine
+*.ckpt
+*.npy
+.ipynb_checkpoints/

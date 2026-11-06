@@ -1,0 +1,19 @@
+# PyTorch with CUDA (preinstalled on Colab)
+torch
+nvidia-modelopt[onnx]
+tensorrt
+onnx
+numpy
+pandas
+scipy
+medpy
+einops
+omegaconf
+pyyaml
+opencv-python-headless
+pillow
+matplotlib
+tqdm
+tabulate
+gdown
+kagglehub
