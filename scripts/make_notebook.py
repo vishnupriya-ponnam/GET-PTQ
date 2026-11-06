@@ -41,7 +41,7 @@ GET_PTQ_REPO = "https://github.com/vishnupriya-ponnam/GET-PTQ.git"
 # download in Google Drive and set the path, e.g. "/content/drive/MyDrive/datasets/GlaS"
 RAW_DATA_DIR = None
 
-SAVE_TO_DRIVE = True      # copy results (tables + figures) to Google Drive
+SAVE_TO_DRIVE = True      # copy results to Google Drive (if Drive can't connect, the notebook carries on and offers a zip download)
 DRIVE_OUT     = f"/content/drive/MyDrive/GET-PTQ-results/{DATASET}"
 """),
 (MD, "## 2. Install packages and get the code"),
@@ -71,9 +71,17 @@ print(f"VAE checkpoint: {os.path.getsize(VAE_CKPT)/1e6:.0f} MB")
 (MD, """## 4. Dataset
 
 GET's split files list exactly which images are train and test. `prepare_dataset.py` converts the raw download into GET's layout (`images/<name>.png`, `masks/<name>.png`) and stops with a clear message if anything is missing."""),
-(CODE, """if SAVE_TO_DRIVE or (RAW_DATA_DIR or "").startswith("/content/drive"):
+(CODE, """DRIVE_OK = False
+if SAVE_TO_DRIVE or (RAW_DATA_DIR or "").startswith("/content/drive"):
     from google.colab import drive
-    drive.mount("/content/drive")
+    try:
+        drive.mount("/content/drive")
+        DRIVE_OK = True
+    except Exception as e:
+        print("Google Drive did not connect:", e)
+        print("Carrying on without Drive. Results will be offered as a zip download at the end.")
+        assert not (RAW_DATA_DIR or "").startswith("/content/drive"), \
+            "RAW_DATA_DIR is on Google Drive, so Drive is needed: rerun this cell and approve the Drive popup."
 
 DATA_DIR = f"{GET_ROOT}/Dataset/{DATASET}"
 raw = RAW_DATA_DIR
@@ -123,10 +131,13 @@ for p in fig_paths:
 (MD, "## 8. Save results"),
 (CODE, """from get_ptq.figures import save_mask_pngs
 save_mask_pngs(OUT, configs=[c for c in ("fp32", "int8_all") if c in configs])   # every predicted mask as PNG
-if SAVE_TO_DRIVE:
+!cd /content/results && zip -qr {DATASET}_results.zip {DATASET} -x "*/_work/*" && ls -la /content/results
+if SAVE_TO_DRIVE and DRIVE_OK:
     shutil.copytree(OUT, DRIVE_OUT, dirs_exist_ok=True)
     print("Copied to", DRIVE_OUT)
-!cd /content/results && zip -qr {DATASET}_results.zip {DATASET} && ls -la /content/results
+else:
+    from google.colab import files
+    files.download(f"/content/results/{DATASET}_results.zip")   # saves the zip to your computer
 """),
 ]
 
