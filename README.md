@@ -1,5 +1,7 @@
 # GET-PTQ: real INT8 / mixed-precision post-training quantization for GET
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/vishnupriya-ponnam/GET-PTQ/blob/main/GET_PTQ_Colab.ipynb)
+
 This repo applies the real post-training quantization (PTQ) pipeline of
 **Qu et al. (2025)** ([arXiv:2501.17343](https://arxiv.org/abs/2501.17343)) to **GET**, a
 generative medical image segmentation model (**Rahman et al., 2026**,
